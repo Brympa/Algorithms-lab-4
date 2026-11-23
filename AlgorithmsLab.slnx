@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AlgorithmsLab.Application/AlgorithmsLab.Application.csproj" />
+    <Project Path="src/AlgorithmsLab.Desktop/AlgorithmsLab.Desktop.csproj" />
+    <Project Path="src/AlgorithmsLab.Domain/AlgorithmsLab.Domain.csproj" />
+    <Project Path="src/AlgorithmsLab.Infrastructure/AlgorithmsLab.Infrastructure.csproj" />
+  </Folder>
+</Solution>

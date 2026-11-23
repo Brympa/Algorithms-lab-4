@@ -1,0 +1,126 @@
+<UserControl x:Class="AlgorithmsLab.Desktop.ExternalView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:AlgorithmsLab.Desktop">
+    <StackPanel>
+        <TextBlock Text="Внешняя сортировка" Style="{StaticResource Title}" />
+        <TextBlock Text="Выберите столбец таблицы. Программа упорядочит строки с помощью временных файлов."
+                   Style="{StaticResource MutedText}" Margin="0,7,0,20" />
+        <Border Style="{StaticResource Surface}" Margin="0,0,0,16">
+            <StackPanel x:Name="Inputs">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Исходная таблица" Style="{StaticResource Label}" />
+                        <TextBox x:Name="SourcePath" IsReadOnly="True" Text="Выберите CSV или TSV с заголовком"
+                                 AutomationProperties.Name="Путь к исходной таблице" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+                        <Button Content="Открыть файл" Click="OpenFile" Margin="0,0,7,0" />
+                        <Button Content="Пример" Click="OpenExample" />
+                    </StackPanel>
+                </Grid>
+                <UniformGrid Columns="4" Margin="0,12,0,0">
+                    <StackPanel Margin="0,0,9,0">
+                        <TextBlock Text="Метод слияния" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="Method" SelectionChanged="SelectMethod" AutomationProperties.Name="Метод слияния">
+                            <ComboBoxItem>Прямое</ComboBoxItem><ComboBoxItem>Естественное</ComboBoxItem><ComboBoxItem>Многопутевое</ComboBoxItem>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,9,0">
+                        <TextBlock Text="Разделитель" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="Separator" SelectionChanged="ChangeSeparator" AutomationProperties.Name="Разделитель столбцов">
+                            <ComboBoxItem>Точка с запятой</ComboBoxItem><ComboBoxItem>Запятая</ComboBoxItem><ComboBoxItem>Табуляция</ComboBoxItem>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,9,0">
+                        <TextBlock Text="Ключевой столбец" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="Key" AutomationProperties.Name="Ключевой столбец" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Тип ключа" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="KeyType" SelectedIndex="0" AutomationProperties.Name="Тип ключа">
+                            <ComboBoxItem>Текст (русский алфавит)</ComboBoxItem><ComboBoxItem>Число</ComboBoxItem>
+                        </ComboBox>
+                    </StackPanel>
+                </UniformGrid>
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" /><ColumnDefinition Width="9" /><ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Столбец фильтра" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="FilterColumn" SelectionChanged="SelectFilter" AutomationProperties.Name="Столбец фильтра" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Значение фильтра" Style="{StaticResource Label}" />
+                        <TextBox x:Name="FilterValue" IsEnabled="False" AutomationProperties.Name="Значение фильтра" />
+                    </StackPanel>
+                    <Button x:Name="StartButton" Grid.Column="4" Content="Сортировать и сохранить" Click="Start"
+                            Style="{StaticResource Primary}" IsEnabled="False" VerticalAlignment="Bottom" />
+                </Grid>
+            </StackPanel>
+        </Border>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" /><ColumnDefinition Width="15" /><ColumnDefinition Width="292" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource Surface}" VerticalAlignment="Top">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,11">
+                        <TextBlock x:Name="Pass" DockPanel.Dock="Right" Style="{StaticResource MutedText}" FontFamily="Consolas" FontSize="12" />
+                        <TextBlock Text="Временные ленты" Style="{StaticResource Heading}" />
+                    </DockPanel>
+                    <TextBlock x:Name="MethodHint" Style="{StaticResource MutedText}" FontSize="13" Margin="0,0,0,11" />
+                    <ItemsControl x:Name="TapeList">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderThickness="1" CornerRadius="7" Padding="10,7" Margin="0,0,6,6">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{DynamicResource Field}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Active}" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentPanel}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Bar}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" FontSize="12" />
+                                        <TextBlock Text="{Binding LastWrite}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding LastWrite}" Margin="0,3,0,0" FontSize="12" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Background="{DynamicResource AccentPanel}" CornerRadius="7" Padding="11,8" Margin="0,7,0,12">
+                        <StackPanel>
+                            <TextBlock x:Name="Stage" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" FontSize="13" Text="Готовность" />
+                            <TextBlock x:Name="Explanation" Margin="0,3,0,0" Text="Загрузите таблицу и выберите ключевой столбец." />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="Последние строки слияния" Style="{StaticResource Label}" />
+                    <TextBlock x:Name="EmptyPreview" Text="Строки появятся во время первого слияния." Style="{StaticResource MutedText}" FontSize="12" />
+                    <ItemsControl x:Name="Preview">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding}" FontSize="12" Margin="0,0,0,3" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock x:Name="Result" Foreground="{DynamicResource Accent}" FontSize="13" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+            <local:PlaybackPanel x:Name="Playback" Grid.Column="2" VerticalAlignment="Top" />
+        </Grid>
+    </StackPanel>
+</UserControl>

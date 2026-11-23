@@ -1,0 +1,60 @@
+<UserControl x:Class="AlgorithmsLab.Desktop.PlaybackPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource Surface}">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+                <TextBlock DockPanel.Dock="Right" FontFamily="Consolas" Foreground="{DynamicResource Accent}"
+                           Text="{Binding ElementName=DelaySlider, Path=Value, StringFormat={}{0:0} мс}" />
+                <TextBlock Text="Задержка шага" Style="{StaticResource Label}" Margin="0" />
+            </DockPanel>
+            <Slider x:Name="DelaySlider" Minimum="0" Maximum="1000" Value="150" TickFrequency="10"
+                    IsSnapToTickEnabled="True" ValueChanged="DelayChanged" Margin="0,0,0,8"
+                    AutomationProperties.Name="Задержка шага в миллисекундах" />
+            <UniformGrid Columns="3" Margin="0,0,0,12">
+                <Button x:Name="Pause" Content="Пауза" IsEnabled="False" Click="TogglePause" Padding="5,5" Margin="0,0,4,0" />
+                <Button x:Name="Single" Content="Шаг" IsEnabled="False" Click="StepOnce" Padding="5,5" Margin="4,0" />
+                <Button x:Name="Stop" Content="Стоп" IsEnabled="False" Click="StopRun" Padding="5,5" Margin="4,0,0,0" />
+            </UniformGrid>
+            <TextBlock x:Name="Status" AutomationProperties.LiveSetting="Polite" Style="{StaticResource MutedText}"
+                       FontSize="12" Margin="0,0,0,13" Text="Ожидает запуска" />
+            <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Margin="0,0,0,13" />
+
+            <TextBlock Text="Журнал операций" Style="{StaticResource Heading}" Margin="0,0,0,8" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,11">
+                <TextBlock Text="{Binding ElementName=Comparisons, Path=Text, StringFormat=Сравнения {0}}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,9,0" />
+                <TextBlock Text="{Binding ElementName=Changes, Path=Text, StringFormat=Изменения {0}}" Style="{StaticResource MutedText}" FontSize="11" />
+                <TextBlock x:Name="Comparisons" Text="0" Visibility="Collapsed" />
+                <TextBlock x:Name="Changes" Text="0" Visibility="Collapsed" />
+            </StackPanel>
+            <TextBlock x:Name="EmptyLog" Style="{StaticResource MutedText}" FontSize="13"
+                       Text="Ход сортировки появится здесь после запуска." />
+            <ItemsControl x:Name="LogList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="0,6,0,7">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="{Binding Number}" Foreground="{DynamicResource Subtle}"
+                                               FontFamily="Consolas" FontSize="11" Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Category}" Foreground="{DynamicResource Accent}" FontSize="10"
+                                               FontWeight="SemiBold" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding Message}" FontSize="12" TextTrimming="CharacterEllipsis" MaxHeight="50"
+                                           ToolTip="{Binding Message}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <DockPanel Margin="0,12,0,0" LastChildFill="False">
+                <TextBlock x:Name="PageLabel" DockPanel.Dock="Left" Text="0 / 0" VerticalAlignment="Center"
+                           Style="{StaticResource MutedText}" FontFamily="Consolas" FontSize="12" />
+                <Button x:Name="NextPage" DockPanel.Dock="Right" Content="›" FontSize="16" MinHeight="27" Padding="9,0"
+                        IsEnabled="False" Click="TurnPage" Tag="1" AutomationProperties.Name="Следующая страница журнала" />
+                <Button x:Name="BackPage" DockPanel.Dock="Right" Content="‹" FontSize="16" MinHeight="27" Padding="9,0" Margin="0,0,6,0"
+                        IsEnabled="False" Click="TurnPage" Tag="-1" AutomationProperties.Name="Предыдущая страница журнала" />
+            </DockPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
