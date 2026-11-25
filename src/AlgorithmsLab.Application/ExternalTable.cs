@@ -12,8 +12,19 @@ public sealed record ExternalSortOptions(string Source, string Destination, Tabl
     int KeyColumn, ColumnType KeyType, MergeMethod Method, TableFilter? Filter = null);
 public sealed record ExternalSortResult(long RowCount, int InitialRuns, int Passes);
 
-public sealed record MergeStep(SortStep Step, int Pass, int TapeCount, int Tape = -1, int Run = 0,
-    TableRow? Row = null, bool WritesMergedRow = false);
+public sealed record MergeStep(
+    SortStep Step,
+    int Pass,
+    int TapeCount,
+    int Tape = -1,
+    int Run = 0,
+    TableRow? Row = null,
+    bool WritesMergedRow = false,
+    int SourceTape = -1,
+    int CompareTapeA = -1,
+    int CompareTapeB = -1,
+    long[]? HeadRows = null,
+    bool StartsNewRun = false);
 
 public interface IExternalTableStorage
 {

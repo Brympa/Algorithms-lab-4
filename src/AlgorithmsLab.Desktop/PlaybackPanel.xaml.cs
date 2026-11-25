@@ -24,6 +24,7 @@ public partial class PlaybackPanel : UserControl
     public PlaybackPanel() => InitializeComponent();
 
     public int Delay { set => DelaySlider.Value = value; }
+    public int CurrentAnimationMs { get; private set; }
 
     internal async Task RunAsync<T>(Func<Action<SortStep, Action>, CancellationToken, T> work, Action<T>? completed = null)
     {
@@ -75,6 +76,12 @@ public partial class PlaybackPanel : UserControl
                         changes++;
 
                     var interval = Volatile.Read(ref delay);
+                    var animMs = manual
+                        ? 280
+                        : interval > 0
+                            ? Math.Clamp((int)(interval * 0.82), 45, 420)
+                            : 0;
+
                     if (manual || interval > 0 || frameClock.ElapsedMilliseconds >= 33 ||
                         step.Kind is StepKind.Start or StepKind.Complete)
                     {
@@ -82,6 +89,7 @@ public partial class PlaybackPanel : UserControl
                         {
                             if (!closed)
                             {
+                                CurrentAnimationMs = animMs;
                                 draw();
                                 RefreshLog();
                             }
@@ -113,6 +121,7 @@ public partial class PlaybackPanel : UserControl
         finally
         {
             cancellation = null;
+            CurrentAnimationMs = 0;
             if (closed)
                 journal?.Dispose();
             else

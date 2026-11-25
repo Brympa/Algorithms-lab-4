@@ -23,7 +23,7 @@ public sealed class ExternalSorting(IExternalTableStorage storage)
         var pass = 0;
         var run = 0;
         var rows = 0L;
-        Publish(StepKind.Start, "Читаем строки из файла и раскладываем их по временным файлам.",
+        Publish(StepKind.Start, "Читаем строки из файла и раскладываем их по временным лентам.",
             label: "Разбиение на серии");
 
         using (var writers = new Handles<ITapeWriter>(tapes, work.OpenWriter))
@@ -37,7 +37,9 @@ public sealed class ExternalSorting(IExternalTableStorage storage)
                     continue;
 
                 var row = Prepare(source);
-                if (previous is null || options.Method == MergeMethod.Direct || Compare(previous, row) > 0)
+                var startsNewRun = previous is null || options.Method == MergeMethod.Direct ||
+                                   Compare(previous, row, tape: tape, incomingRow: row) > 0;
+                if (startsNewRun)
                 {
                     if (previous is not null)
                         writers[tape].EndRun();
@@ -45,10 +47,10 @@ public sealed class ExternalSorting(IExternalTableStorage storage)
                     tape = run % tapeCount;
                     run++;
                     Publish(StepKind.Phase, $"Начинаем серию {run} на ленте {tape + 1}.",
-                        tape, label: "Новая серия");
+                        tape, row: row, label: "Новая серия");
                 }
 
-                Write(writers[tape], row, tape, merged: false);
+                Write(writers[tape], row, tape, merged: false, startsNewRun: startsNewRun);
                 previous = row;
                 rows++;
             }
@@ -62,7 +64,7 @@ public sealed class ExternalSorting(IExternalTableStorage storage)
         {
             pass++;
             run = 0;
-            Publish(StepKind.Phase, $"Начинаем проход {pass}. Берём по одной серии с каждой ленты.",
+            Publish(StepKind.Phase, $"Начинаем проход {pass}. Берём по одной серии с каждой входной ленты.",
                 label: $"Слияние · проход {pass}");
             var output = CreateTapes(work, tapeCount);
             using (var readers = new Handles<ITapeReader>(tapes, work.OpenReader))
@@ -77,13 +79,18 @@ public sealed class ExternalSorting(IExternalTableStorage storage)
 
                     var target = run % tapeCount;
                     run++;
-                    Publish(StepKind.Phase, $"Собираем серию {run}. Сравниваем первые строки открытых серий.",
-                        target, label: "Слияние серий");
+                    Publish(StepKind.Phase,
+                        $"Собираем серию {run} на ленте {target + 1}. Сравниваем первые строки открытых серий.",
+                        target, label: $"Слияние · серия {run}", headRows: HeadSnapshot(heads));
 
+                    var firstInRun = true;
                     for (var winner = FirstRow(heads); winner >= 0; winner = FirstRow(heads))
                     {
-                        Write(writers[target], heads[winner]!, target, merged: true);
+                        var chosen = heads[winner]!;
                         heads[winner] = readers[winner].ReadRow();
+                        Write(writers[target], chosen, target, merged: true,
+                            sourceTape: winner, startsNewRun: firstInRun, headRows: HeadSnapshot(heads));
+                        firstInRun = false;
                     }
 
                     writers[target].EndRun();
@@ -114,14 +121,16 @@ public sealed class ExternalSorting(IExternalTableStorage storage)
             throw new FormatException($"Запись №{row.Number}: «{value}» в выбранном столбце не является числом.");
         }
 
-        int Compare(TableRow left, TableRow right)
+        int Compare(TableRow left, TableRow right, int tape = -1, TableRow? incomingRow = null,
+            int compareTapeA = -1, int compareTapeB = -1, long[]? headRows = null)
         {
             var first = left.Fields[options.KeyColumn];
             var second = right.Fields[options.KeyColumn];
             var order = options.KeyType == ColumnType.Number
                 ? left.NumericKey!.Value.CompareTo(right.NumericKey!.Value)
                 : Russian.Compare(first, second, CompareOptions.IgnoreCase);
-            Publish(StepKind.Compare, $"Сравниваем «{first}» и «{second}» (строки {left.Number} и {right.Number}).");
+            Publish(StepKind.Compare, $"Сравниваем «{first}» и «{second}» (строки {left.Number} и {right.Number}).",
+                tape: tape, row: incomingRow, compareTapeA: compareTapeA, compareTapeB: compareTapeB, headRows: headRows);
             return order != 0 ? order : left.Number.CompareTo(right.Number);
         }
 
@@ -130,26 +139,45 @@ public sealed class ExternalSorting(IExternalTableStorage storage)
             var best = -1;
             for (var index = 0; index < heads.Length; index++)
             {
-                if (heads[index] is { } candidate && (best < 0 || Compare(candidate, heads[best]!) < 0))
+                if (heads[index] is { } candidate &&
+                    (best < 0 || Compare(candidate, heads[best]!,
+                        compareTapeA: best, compareTapeB: index, headRows: HeadSnapshot(heads)) < 0))
                     best = index;
             }
 
             return best;
         }
 
-        void Write(ITapeWriter writer, TableRow row, int tape, bool merged)
+        void Write(ITapeWriter writer, TableRow row, int tape, bool merged,
+            int sourceTape = -1, bool startsNewRun = false, long[]? headRows = null)
         {
             token.ThrowIfCancellationRequested();
             writer.Write(row);
-            Publish(StepKind.Write, $"Записываем строку {row.Number} («{row.Fields[options.KeyColumn]}») на ленту {tape + 1}.",
-                tape, row, merged);
+            var sourceInfo = sourceTape >= 0 ? $" (с ленты {sourceTape + 1})" : "";
+            Publish(StepKind.Write,
+                $"Записываем строку {row.Number} («{row.Fields[options.KeyColumn]}») на ленту {tape + 1}{sourceInfo}.",
+                tape, row, merged, sourceTape: sourceTape, headRows: headRows, startsNewRun: startsNewRun);
+        }
+
+        long[]? HeadSnapshot(TableRow?[] heads)
+        {
+            if (observer is null)
+                return null;
+
+            var snapshot = new long[heads.Length];
+            for (var i = 0; i < heads.Length; i++)
+                snapshot[i] = heads[i]?.Number ?? -1;
+            return snapshot;
         }
 
         void Publish(StepKind kind, string message, int tape = -1,
-            TableRow? row = null, bool merged = false, string? label = null)
+            TableRow? row = null, bool merged = false, string? label = null,
+            int sourceTape = -1, int compareTapeA = -1, int compareTapeB = -1,
+            long[]? headRows = null, bool startsNewRun = false)
         {
             token.ThrowIfCancellationRequested();
-            observer?.Invoke(new(new(kind, message, Label: label), pass, tapeCount, tape, run, row, merged));
+            observer?.Invoke(new(new(kind, message, Label: label), pass, tapeCount, tape, run, row, merged,
+                sourceTape, compareTapeA, compareTapeB, headRows, startsNewRun));
         }
     }
 

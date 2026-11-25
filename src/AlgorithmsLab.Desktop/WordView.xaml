@@ -42,38 +42,138 @@
                     <StackPanel>
                         <DockPanel Margin="0,0,0,10">
                             <TextBlock x:Name="WindowCaption" DockPanel.Dock="Right" VerticalAlignment="Center"
-                                       Style="{StaticResource MutedText}" FontFamily="Consolas" FontSize="11" />
-                            <TextBlock Text="Порядок слов" Style="{StaticResource Heading}" />
+                                       Style="{StaticResource MutedText}" FontFamily="Consolas" FontSize="11.5" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Лента слов" Style="{StaticResource Heading}" VerticalAlignment="Center" />
+                                <Border x:Name="PivotBadge" Visibility="Collapsed" Background="{DynamicResource PivotPanel}"
+                                        BorderBrush="{DynamicResource Pivot}" BorderThickness="1" CornerRadius="5"
+                                        Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="PivotBadgeText" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Pivot}" />
+                                </Border>
+                            </StackPanel>
                         </DockPanel>
-                        <ItemsControl x:Name="Tokens" MinHeight="65">
-                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderThickness="1" CornerRadius="5" Padding="7,3" Margin="0,0,5,5">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="{DynamicResource Field}" />
-                                                <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Highlight}" Value="Compare">
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource Compare}" />
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding Highlight}" Value="Change">
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource Change}" />
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding Highlight}" Value="Range">
-                                                        <Setter Property="Background" Value="{DynamicResource AccentPanel}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <TextBlock Text="{Binding Word}" ToolTip="{Binding Word}" MaxWidth="140" TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis" FontFamily="Consolas" FontSize="13" />
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Border Background="{DynamicResource AccentPanel}" CornerRadius="7" Padding="11,8" Margin="0,5,0,0">
+
+                        <Border Background="{DynamicResource Field}" BorderBrush="{DynamicResource Border}"
+                                BorderThickness="1" CornerRadius="7" Padding="4,4">
+                            <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <local:WordTapeChart x:Name="WordTape" AutomationProperties.Name="Лента слов" />
+                            </ScrollViewer>
+                        </Border>
+
+                        <WrapPanel Margin="0,9,0,10">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,14,4">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource Accent}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Активный диапазон / итог" Style="{StaticResource MutedText}" FontSize="11" />
+                            </StackPanel>
+                            <StackPanel x:Name="PivotLegend" Orientation="Horizontal" Margin="0,0,14,4">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource Pivot}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Опорный элемент (Pivot)" Style="{StaticResource MutedText}" FontSize="11" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,14,4">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource Compare}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Сравнение / разряд" Style="{StaticResource MutedText}" FontSize="11" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource Change}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Обмен / перемещение" Style="{StaticResource MutedText}" FontSize="11" />
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <StackPanel x:Name="RadixSection" Visibility="Collapsed" Margin="0,0,0,10">
+                            <Border Background="{DynamicResource Hover}" CornerRadius="6" Padding="10,4" Margin="0,0,0,9"
+                                    HorizontalAlignment="Center">
+                                <TextBlock x:Name="RadixFlowCaption" FontSize="11.5" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Accent}" />
+                            </Border>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock x:Name="BucketSummary" DockPanel.Dock="Right" Style="{StaticResource MutedText}"
+                                           FontFamily="Consolas" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="Корзины-ленты распределения (RadixSort)" Style="{StaticResource Label}" Margin="0" />
+                            </DockPanel>
+                            <TextBlock x:Name="EmptyBuckets" Text="Корзины начнут заполняться после запуска поразрядной сортировки."
+                                       Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,4" />
+                            <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl x:Name="BucketList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderThickness="1" CornerRadius="7" Padding="9,6" Margin="0,0,0,6">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{DynamicResource Field}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Active}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource AccentPanel}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource Bar}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="74" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                                        <Border Background="{DynamicResource RunBg}" BorderBrush="{DynamicResource Border}"
+                                                                BorderThickness="1" CornerRadius="5" Padding="6,2" HorizontalAlignment="Left">
+                                                            <TextBlock Text="{Binding Label}" FontFamily="Consolas" FontSize="12.5"
+                                                                       FontWeight="Bold" Foreground="{DynamicResource Accent}" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding CountText}" Style="{StaticResource MutedText}"
+                                                                   FontFamily="Consolas" FontSize="10" Margin="2,3,0,0" />
+                                                    </StackPanel>
+                                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Words}" VerticalAlignment="Center">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border CornerRadius="4" Padding="6,2" Margin="0,0,5,4">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border">
+                                                                            <Setter Property="Background" Value="{DynamicResource Card}" />
+                                                                            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+                                                                            <Setter Property="BorderThickness" Value="1" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                                                                    <Setter Property="Background" Value="{DynamicResource ChangePanel}" />
+                                                                                    <Setter Property="BorderBrush" Value="{DynamicResource Change}" />
+                                                                                    <Setter Property="BorderThickness" Value="1.5" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
+                                                                    <TextBlock Text="{Binding Word}" FontFamily="Consolas" FontSize="12"
+                                                                               MaxWidth="135" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource Text}" />
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="{DynamicResource Change}" />
+                                                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+
+                        <Border Background="{DynamicResource AccentPanel}" CornerRadius="7" Padding="11,8">
                             <StackPanel>
                                 <TextBlock x:Name="Stage" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" FontSize="13" />
                                 <TextBlock x:Name="Explanation" Margin="0,3,0,0" />

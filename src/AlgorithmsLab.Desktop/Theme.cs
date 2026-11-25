@@ -29,7 +29,9 @@ internal static class Theme
         ["Hover"] = "#243328", ["Border"] = "#344438", ["Text"] = "#EBF2E9", ["Muted"] = "#A4B5A6",
         ["Subtle"] = "#829786", ["Accent"] = "#A0E39F", ["AccentHover"] = "#B5EEB5",
         ["OnAccent"] = "#142715", ["AccentPanel"] = "#233C29", ["Bar"] = "#518463",
-        ["DimBar"] = "#2B4032", ["Compare"] = "#F2C885", ["Change"] = "#94B6EF", ["Danger"] = "#FF9F98"
+        ["DimBar"] = "#2B4032", ["Compare"] = "#F2C885", ["Change"] = "#94B6EF", ["Danger"] = "#FF9F98",
+        ["Pivot"] = "#D094F5", ["PivotPanel"] = "#31223E", ["ComparePanel"] = "#3B311F",
+        ["ChangePanel"] = "#1F2E44", ["RunBg"] = "#1D2820"
     };
 
     private static readonly Dictionary<string, string> Light = new()
@@ -38,6 +40,8 @@ internal static class Theme
         ["Hover"] = "#E3EDE2", ["Border"] = "#CEDCCF", ["Text"] = "#18251A", ["Muted"] = "#465E4B",
         ["Subtle"] = "#58705C", ["Accent"] = "#285C38", ["AccentHover"] = "#1F4C2D",
         ["OnAccent"] = "#FFFFFF", ["AccentPanel"] = "#DDEFE0", ["Bar"] = "#669477",
-        ["DimBar"] = "#CDDCD0", ["Compare"] = "#A86611", ["Change"] = "#3566A9", ["Danger"] = "#9E322B"
+        ["DimBar"] = "#CDDCD0", ["Compare"] = "#A86611", ["Change"] = "#3566A9", ["Danger"] = "#9E322B",
+        ["Pivot"] = "#7E3AF2", ["PivotPanel"] = "#EFE5FD", ["ComparePanel"] = "#FBF0DC",
+        ["ChangePanel"] = "#E2ECFA", ["RunBg"] = "#EAF2EA"
     };
 }

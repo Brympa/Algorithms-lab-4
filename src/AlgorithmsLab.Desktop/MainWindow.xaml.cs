@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     {
         Theme.Apply(!Theme.IsDark);
         Arrays.RefreshTheme();
+        Words.RefreshTheme();
         UpdateThemeLabel();
     }
 

@@ -9,7 +9,7 @@ namespace AlgorithmsLab.Desktop;
 
 public partial class WordView : UserControl
 {
-    private const int ShownWords = 18;
+    private const int MaxWordsPerBucket = 80;
     private readonly WordSorting sorting = new(new QuickSort(), new RadixSort());
     private CancellationTokenSource? measurement;
     private Task? benchmarkTask;
@@ -19,7 +19,7 @@ public partial class WordView : UserControl
     public WordView()
     {
         InitializeComponent();
-        Playback.Delay = 40;
+        Playback.Delay = 120;
         Method.SelectedIndex = 0;
         UpdatePreview();
         ResetTimings();
@@ -50,7 +50,7 @@ public partial class WordView : UserControl
 
     private void TextEdited(object sender, TextChangedEventArgs e)
     {
-        if (Tokens is null)
+        if (WordTape is null)
             return;
 
         UpdatePreview();
@@ -60,7 +60,8 @@ public partial class WordView : UserControl
     private void UpdatePreview()
     {
         words = WordSorting.Tokenize(InputText.Text);
-        Draw(words, new(StepKind.Start, ""));
+        DrawWordTape(words, new(StepKind.Start, ""), animationMs: 0);
+        ResetRadixBuckets();
         if (Frequencies is not null)
         {
             Frequencies.Visibility = Visibility.Collapsed;
@@ -76,19 +77,35 @@ public partial class WordView : UserControl
 
     private void SelectMethod(object sender, SelectionChangedEventArgs e)
     {
-        if (Method is not null && Tokens is not null)
+        if (Method is not null && WordTape is not null)
         {
             DescribeMethod();
-            Draw(words, new(StepKind.Start, ""));
+            DrawWordTape(words, new(StepKind.Start, ""), animationMs: 0);
+            ResetRadixBuckets();
         }
     }
 
     private void DescribeMethod()
     {
+        var isRadix = Method.SelectedIndex == (int)WordMethod.Radix;
         Stage.Text = "Как это работает";
-        Explanation.Text = Method.SelectedIndex == (int)WordMethod.Radix
-            ? "Смотрим на буквы справа налево. На каждом шаге раскладываем слова в корзины и собираем корзины по порядку."
-            : "Берём слово за ориентир. Слова, которые должны идти раньше него, перемещаем влево, остальные — вправо.";
+        Explanation.Text = isRadix
+            ? "Просматриваем символы справа налево. На каждом разряде раскладываем слова по корзинам-лентам и собираем их по порядку."
+            : "Выбираем опорное слово (Pivot). Слова, идущие раньше него, переносим влево, остальные — вправо, анимируя каждый обмен.";
+        PivotLegend.Visibility = isRadix ? Visibility.Collapsed : Visibility.Visible;
+        RadixSection.Visibility = isRadix ? Visibility.Visible : Visibility.Collapsed;
+        RadixFlowCaption.Text = "↓  Корзины-ленты поразрядной сортировки  ↓";
+    }
+
+    private void ResetRadixBuckets()
+    {
+        if (BucketList is null)
+            return;
+
+        BucketList.ItemsSource = null;
+        EmptyBuckets.Visibility = Visibility.Visible;
+        BucketSummary.Text = "";
+        PivotBadge.Visibility = Visibility.Collapsed;
     }
 
     private async void Start(object sender, RoutedEventArgs e)
@@ -101,14 +118,73 @@ public partial class WordView : UserControl
         Inputs.IsEnabled = false;
         Frequencies.Visibility = Visibility.Collapsed;
         NoFrequencies.Visibility = Visibility.Visible;
+        ResetRadixBuckets();
+        RadixSection.Visibility = method == WordMethod.Radix ? Visibility.Visible : Visibility.Collapsed;
+
         try
         {
-            await Playback.RunAsync((report, token) => sorting.Run(input, method, (step, values) => report(step, () =>
+            await Playback.RunAsync((report, token) =>
             {
-                Stage.Text = step.Label ?? Stage.Text;
-                Explanation.Text = step.Message;
-                Draw(values, step);
-            }), token), result =>
+                var buckets = new SortedDictionary<string, List<string>>(BucketKeyComparer.Instance);
+                string? activeBucket = null;
+                var radixFlow = "↓  Корзины-ленты поразрядной сортировки  ↓";
+
+                return sorting.Run(input, method, (step, values) =>
+                {
+                    if (method == WordMethod.Radix)
+                    {
+                        if (step.Kind == StepKind.Phase && step.CharPosition >= 0)
+                        {
+                            var isCollected = step.Label?.StartsWith("Корзины собраны", StringComparison.Ordinal) == true;
+                            if (!isCollected)
+                            {
+                                buckets.Clear();
+                                activeBucket = null;
+                                radixFlow = $"↓  Раскладка по корзинам · символ №{step.CharPosition + 1}  ↓";
+                            }
+                            else
+                            {
+                                activeBucket = null;
+                                radixFlow = $"↑  Корзины собраны в ленту слов · после символа №{step.CharPosition + 1}  ↑";
+                            }
+                        }
+                        else if (step.Kind == StepKind.Write && step.BucketLabel is { } key && step.First >= 0 && step.First < values.Length)
+                        {
+                            if (!buckets.TryGetValue(key, out var list))
+                            {
+                                list = [];
+                                buckets[key] = list;
+                            }
+
+                            list.Add(values[step.First]);
+                            activeBucket = key;
+                            radixFlow = $"↓  Слово «{values[step.First]}» → корзина «{key}» (символ №{step.CharPosition + 1})  ↓";
+                        }
+                        else if (step.Kind == StepKind.Complete)
+                        {
+                            activeBucket = null;
+                            radixFlow = "✓  Сортировка и подсчёт частот завершены";
+                        }
+                    }
+
+                    report(step, () =>
+                    {
+                        Stage.Text = step.Label ?? Stage.Text;
+                        Explanation.Text = step.Message;
+                        DrawWordTape(values, step, Playback.CurrentAnimationMs);
+
+                        if (method == WordMethod.Radix)
+                        {
+                            var bucketSnapshot = BuildBucketViews(buckets, activeBucket);
+                            var totalInBuckets = buckets.Values.Sum(list => list.Count);
+                            RadixFlowCaption.Text = radixFlow;
+                            BucketSummary.Text = buckets.Count == 0 ? "" : $"Корзин: {buckets.Count} · слов: {totalInBuckets:N0}";
+                            BucketList.ItemsSource = bucketSnapshot;
+                            EmptyBuckets.Visibility = bucketSnapshot.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
+                        }
+                    });
+                }, token);
+            }, result =>
             {
                 Frequencies.ItemsSource = result;
                 Frequencies.Visibility = Visibility.Visible;
@@ -119,6 +195,29 @@ public partial class WordView : UserControl
         {
             Inputs.IsEnabled = true;
         }
+    }
+
+    private static BucketTapeView[] BuildBucketViews(SortedDictionary<string, List<string>> buckets, string? activeBucket)
+    {
+        var result = new BucketTapeView[buckets.Count];
+        var index = 0;
+        foreach (var (key, list) in buckets)
+        {
+            var isActive = key == activeBucket;
+            var take = Math.Min(list.Count, MaxWordsPerBucket);
+            var start = list.Count - take;
+            var chips = new List<BucketWordChip>(take + (start > 0 ? 1 : 0));
+            if (start > 0)
+                chips.Add(new($"+{start}…", false));
+
+            for (var i = start; i < list.Count; i++)
+                chips.Add(new(list[i], isActive && i == list.Count - 1));
+
+            var label = key == "∅" ? "∅" : $"«{key}»";
+            result[index++] = new(label, $"{list.Count} сл.", chips.ToArray(), isActive);
+        }
+
+        return result;
     }
 
     private async void Benchmark(object sender, RoutedEventArgs e)
@@ -168,23 +267,23 @@ public partial class WordView : UserControl
         return false;
     }
 
-    private void Draw(string[] values, SortStep step)
+    private void DrawWordTape(string[] values, SortStep step, int animationMs)
     {
-        var first = Math.Clamp(step.First - ShownWords / 2, 0, Math.Max(0, values.Length - ShownWords));
-        var length = Math.Min(ShownWords, values.Length - first);
-        var tiles = new WordTile[length];
-        for (var offset = 0; offset < length; offset++)
-        {
-            var index = first + offset;
-            var highlight = index == step.First || index == step.Second
-                ? step.Kind == StepKind.Compare ? "Compare" : "Change"
-                : index >= step.RangeStart && index <= step.RangeEnd ? "Range" : "";
-            tiles[offset] = new(values[index], highlight);
-        }
+        WordTape.Draw(values, step, animationMs);
+        WindowCaption.Text = WordTape.WindowSummary;
 
-        Tokens.ItemsSource = tiles;
-        WindowCaption.Text = length == 0 ? "0 слов" : $"{first + 1}–{first + length} / {values.Length:N0}";
+        if (step.Pivot >= 0 && step.Pivot < values.Length && step.Kind != StepKind.Complete)
+        {
+            PivotBadge.Visibility = Visibility.Visible;
+            PivotBadgeText.Text = $"★ Опора (Pivot): «{values[step.Pivot]}»";
+        }
+        else
+        {
+            PivotBadge.Visibility = Visibility.Collapsed;
+        }
     }
+
+    public void RefreshTheme() => WordTape.InvalidateVisual();
 
     public async Task CloseAsync()
     {
@@ -202,6 +301,20 @@ public partial class WordView : UserControl
         await Playback.CloseAsync();
     }
 
-    private sealed record WordTile(string Word, string Highlight);
+    private sealed class BucketKeyComparer : IComparer<string>
+    {
+        public static BucketKeyComparer Instance { get; } = new();
+
+        public int Compare(string? x, string? y)
+        {
+            if (x == y) return 0;
+            if (x == "∅") return -1;
+            if (y == "∅") return 1;
+            return StringComparer.Ordinal.Compare(x, y);
+        }
+    }
+
+    private sealed record BucketWordChip(string Word, bool IsNew);
+    private sealed record BucketTapeView(string Label, string CountText, BucketWordChip[] Words, bool Active);
     private sealed record TimingRow(int WordCount, double? QuickMilliseconds, double? RadixMilliseconds);
 }

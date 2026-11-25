@@ -1,4 +1,4 @@
-﻿namespace AlgorithmsLab.Domain;
+namespace AlgorithmsLab.Domain;
 
 public interface IComparisonSort
 {
@@ -29,17 +29,14 @@ public sealed class InsertSort : IComparisonSort
     {
         for (var next = 1; next < items.Count; next++)
         {
-            var key = items[next];
-            items.Phase($"Запоминаем {key} и ищем для него место слева.", 0, next, $"Вставляем {key}", next);
+            items.Phase($"Берём {items[next]} и перемещаем его влево на своё место.",
+                0, next, $"Вставляем {items[next]}", next);
             var position = next;
-            while (position > 0 && items.Compare(position - 1, key, "вставляемое число") > 0)
+            while (position > 0 && items.Compare(position - 1, position) > 0)
             {
-                items.Write(position, items[position - 1], position - 1, "Сдвигаем вправо:");
+                items.Swap(position - 1, position);
                 position--;
             }
-
-            if (position != next)
-                items.Write(position, key, -1, "Вставляем сохранённое число:");
         }
     }
 }
@@ -86,7 +83,17 @@ public sealed class HeapSort : IComparisonSort
 
 public sealed class QuickSort : IComparisonSort
 {
-    public void Sort<T>(SortBuffer<T> items) => SortRange(items, 0, items.Count - 1);
+    public void Sort<T>(SortBuffer<T> items)
+    {
+        try
+        {
+            SortRange(items, 0, items.Count - 1);
+        }
+        finally
+        {
+            items.PivotIndex = -1;
+        }
+    }
 
     private static void SortRange<T>(SortBuffer<T> items, int left, int right)
     {
@@ -94,8 +101,9 @@ public sealed class QuickSort : IComparisonSort
         {
             var middle = left + (right - left) / 2;
             var pivot = items[middle];
-            items.Phase($"Берём {pivot} за ориентир. Меньшие значения отправляем влево, большие — вправо.",
-                left, right, $"Опора · {pivot}", middle);
+            items.PivotIndex = middle;
+            items.Phase($"Берём {pivot} за опорный элемент (Pivot). Меньшие значения отправляем влево, большие — вправо.",
+                left, right, $"Опора (Pivot) · {pivot}", middle);
 
             // Указатели Хоара сходятся навстречу друг другу.
             var lower = left - 1;
@@ -109,6 +117,8 @@ public sealed class QuickSort : IComparisonSort
 
                 items.Swap(lower, upper);
             }
+
+            items.PivotIndex = -1;
 
             // Рекурсивно обрабатываем меньшую часть, чтобы ограничить глубину стека.
             if (upper - left < right - upper - 1)

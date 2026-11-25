@@ -7,7 +7,9 @@ namespace AlgorithmsLab.Desktop;
 
 public partial class ArrayView : UserControl
 {
-    private const int MaximumLength = 24;
+    private const int MinimumGenerated = 4;
+    private const int MaximumGenerated = 256;
+    private const int MaximumLength = MaximumGenerated;
     private readonly ArraySorting sorting = new();
 
     private readonly MethodChoice[] choices =
@@ -15,11 +17,11 @@ public partial class ArrayView : UserControl
         new("SelectSort · выбором", "Сортировка выбором", "O(n²)",
             "Находим самое маленькое из оставшихся чисел и ставим его на первое свободное место.", new SelectSort()),
         new("InsertSort · вставками", "Сортировка вставками", "O(n²)",
-            "Берём следующее число и вставляем его куда нужно среди уже упорядоченных чисел слева.", new InsertSort()),
+            "Берём следующее число и перемещаем его влево с помощью обменов на своё место среди уже упорядоченных чисел.", new InsertSort()),
         new("HeapSort · пирамидальная", "Пирамидальная сортировка", "O(n log n)",
             "Строим кучу с самым большим числом наверху. Переносим это число в конец и повторяем.", new HeapSort()),
         new("QuickSort · Хоара", "Быстрая сортировка Хоара", "O(n log n) в среднем",
-            "Берём число за ориентир, переносим меньшие числа влево, большие вправо и повторяем для каждой части.", new QuickSort())
+            "Выбираем опорный элемент (Pivot), переносим меньшие числа влево, большие вправо и повторяем для каждой части.", new QuickSort())
     ];
 
     public ArrayView()
@@ -62,8 +64,14 @@ public partial class ArrayView : UserControl
 
     private void Generate(object sender, RoutedEventArgs e)
     {
-        Numbers.Text = string.Join("  ", Enumerable.Range(0, 12).Select(_ => Random.Shared.Next(10, 100)));
-        Playback.ShowStatus("Новый массив готов");
+        if (!int.TryParse(Count.Text, out var count) || count is < MinimumGenerated or > MaximumGenerated)
+        {
+            Playback.ShowStatus($"Введите количество элементов от {MinimumGenerated} до {MaximumGenerated}.", error: true);
+            return;
+        }
+
+        Numbers.Text = string.Join("  ", Enumerable.Range(0, count).Select(_ => Random.Shared.Next(10, 100)));
+        Playback.ShowStatus($"Новый массив готов · элементов {count}");
     }
 
     private async void Start(object sender, RoutedEventArgs e)
@@ -88,7 +96,7 @@ public partial class ArrayView : UserControl
             await Playback.RunAsync((report, token) => sorting.Run(input, choice.Algorithm, (step, values) =>
                 report(step, () =>
                 {
-                    Chart.Draw(values, step);
+                    Chart.Draw(values, step, Playback.CurrentAnimationMs);
                     Stage.Text = step.Label ?? Stage.Text;
                     Explanation.Text = step.Message;
                 }), token));
